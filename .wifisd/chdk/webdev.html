@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>WIFISD Webserver Development</title>
+<style type="text/css">
+body {
+  font-family: Arial, sans-serif;
+  background-color: #004488;
+  min-width: 600px;
+  margin: 5px 0px;
+  padding: 5px;
+}
+h1 {
+  color: #ffffff;
+  font-size: 20px;
+  margin: 0px 40px;
+}
+form {
+  margin: 10px;
+}
+a {
+  color: #ffffff;
+  font-size: 11px;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+.article {
+  background-color: #ffffff;
+  margin: 10px;
+  padding: 10px;
+  padding-top: 4px;
+  font-size: 14px;
+}
+.article hr{
+  color: #000000;
+  background-color: #000000;
+  height: 1px;
+  border: 0px;
+}
+.article fieldset{
+  border: 1px solid;
+}
+.article legend{
+  font-weight: 400;
+  text-transform: uppercase;
+}
+.dir{
+  font-family: monospace;
+}
+.hint{
+  margin: 0px 14px;
+  font-size: 12px;
+}
+.footer {
+  color: #ffffff;
+  font-size: 11px;
+  margin: 3px 40px;
+  float: left;
+}
+.version {
+  color: #ffffff;
+  font-size: 11px;
+  margin: 3px 40px;
+  float: right;
+}
+.fileinput {
+  font-size: 14px;
+  width: 370px;
+  height: 26px;
+  background-color: #ffffff;
+  border: 1px dotted #004488;
+}
+.submit {
+  margin-left: 20px;
+  position: absolute;
+  font-size: 14px;
+  width: 120px;
+  height: 26px;
+  background-color: #ffffff;
+  border: 1px solid #004488;
+}
+.error {
+  color: #ff0000;
+  font-weight: bold;
+  margin: 0px 20px;
+}
+#script {
+  display: none;
+}
+#noscript {
+  display: block;
+}
+</style>
+<script type="text/javascript">
+var fn = "<insert lastfilename>";
+var fs = "<insert bytecount>";
+var em = "<insert MESSAGE>";
+var _GET = new Array();
+var _GETcount = 0;
+var langDE = (navigator.language.indexOf("de") >= 0);
+var canSubmit = true;
+
+var params = unescape(location.search.substring(1, location.search.length)).split("&");
+for(var i=0; i < params.length; i++) {
+	param = params[i].split("=");
+	_GET[param[0]] = param[1];
+	if (param[0]) { _GETcount += 1; }
+}
+
+function isUploadBad() {
+  return (em.substr(0,1) != "<");
+}
+
+function isUploadGood() {
+  return (fn.substr(0,1) != "<") && (fs.substr(0,1) != "<");
+}
+
+function isUploadEnd() {
+  return (isUploadBad() || isUploadGood());
+}
+
+function formatGetVals() {
+  var res = "?p="+_GET.p;//location.search;
+  if (isUploadBad()) {
+    res += "&res=bad&em="+escape(em);
+  } else {
+    if (isUploadGood()) { res += "&res=good&fn="+escape(fn)+"&fs="+escape(fs); }
+  }
+  return res;
+}
+
+function writeResult(id, text, iserr) {
+  var node = document.getElementById(id);
+  node.innerHTML = text;
+  node.style.color = (iserr)?"red":"green";
+  setTimeout(function() { node.innerHTML = ""; }, 10000);
+}
+
+function writeUploadResult() {
+  var _text1 = (langDE)?"hochgeladene Datei: ":"uploaded file: "
+  var _text2 = (langDE)?"Byte":"byte"
+  var _text3 = (langDE)?"Fehler beim Hochladen: ":"upload error: "
+  writeResult(_GET.p, (_GET.res=="good")? _text1+_GET.fn+" ["+_GET.fs+" "+_text2+"]":_text3+_GET.em, (_GET.res == "good")?0:1);
+}
+
+function checkFileExt(tfile, extlist, idErr) {
+  var name = tfile.value;
+  if (name.length > 0) {
+    var res = 0;
+    var ldp = name.lastIndexOf(".") + 1;
+    if (extlist.length > 0 && ldp > 1 && (name.length-ldp) > 1) {
+      var ext = name.substr(ldp);
+      for (i in extlist) {
+        if (extlist[i] == ext) { res = 1; break; }
+      }
+    }
+    if (res == 0) {
+      tfile.value = "";
+      var msg = (langDE)?"Gültige Dateiendung":"Valid file extension";
+      var pl = "";
+      if (extlist.length > 1) { pl = (langDE)?"en":"s"; }
+      writeResult(idErr, msg+pl+": "+extlist, 1);
+    }
+  }
+}
+
+function btnSubmit(formID, errID) {
+  var _text = (langDE)?"Es wird bereits eine Datei hochgeladen!":"There is a file upload already in process!"
+  if (canSubmit) {
+    if (formID.file1.value.length == 0) {
+      _text = (langDE)?"Keine Datei ausgewählt!":"No file selected!";
+    } else {
+      canSubmit = false;
+      return true;
+    }
+  }
+  writeResult(errID, _text, true);
+  return false;
+}
+
+function myload() {
+  //is upload finished?
+  if (isUploadEnd()) {
+    //redirect with get
+    var ref = document.referrer;
+    var i = ref.indexOf("?");
+    if (i > 0) { ref = ref.substring(0, i); }
+    location.replace(ref + formatGetVals());
+  } else {
+    //is redirected to main html?
+    if (_GETcount > 0) { writeUploadResult(); }
+    document.getElementById("script").style.display = "block";
+  }
+}
+
+function toLangDE() {
+  document.title = "WIFISD-Webserver-Entwicklung";
+  document.getElementById("_title").innerHTML = document.title;
+  document.getElementById("_leg1").innerHTML = "Ziel: Server";
+  document.getElementById("_hint1").innerHTML = "Kopiert die Datei in das Arbeitserzeichnis des Webservers. Gültig bis zum Auschalten der Kamera.";
+  document.getElementById("_cap1a").innerHTML = "Verzeichnis <span class=\"dir\">/www/</span>";
+  document.forms._f1a._b1a.value="Hochladen";
+  document.getElementById("_cap1b").innerHTML = "Verzeichnis <span class=\"dir\">/www/cgi-bin/</span>";
+  document.forms._f1b._b1b.value="Hochladen";
+  document.getElementById("_leg2").innerHTML = "Ziel: SD-Karte";
+  document.getElementById("_hint2").innerHTML = "Kopiert die Datei auf die SD-Karte in das Verzeichnis für <span class=\"dir\">autorun.sh</span>.";
+  document.getElementById("_cap2a").innerHTML = "Verzeichnis <span class=\"dir\">/www/</span>";
+  document.forms._f2a._b2a.value="Hochladen";
+  document.getElementById("_cap2b").innerHTML = "Verzeichnis <span class=\"dir\">/www/cgi-bin/</span>";
+  document.forms._f2b._b2b.value="Hochladen";
+}
+
+window.onload = function () {
+  myload();
+  if (langDE) { toLangDE(); }
+  document.getElementById("noscript").style.display = "none";
+}
+</script>
+</head>
+<body>
+  <h1 id="_title">WIFISD Webserver Development</h1>
+  <div id="script">
+    <div class="article">
+      <section>
+        <fieldset>
+          <legend id="_leg1">destination: server</legend>
+          <div class="hint" id="_hint1">Copies the file to working directory on server. Available until switching of the camera.</div>
+          <hr>
+          <form name="_f1a" action="/cgi-bin/uploadto?p=/www/" method="post" enctype="multipart/form-data">
+            <div id="/www/"></div>
+            <input type="hidden" name="OkPage" value="../webdev.html">
+            <input type="hidden" name="BadPage" value="../webdev.html">
+            <div id="_cap1a">Directory <span class="dir">/www/</span></div>
+            <input type="file" name="file1" class="fileinput" onchange='checkFileExt(this, ["htm","html"], "/www/");'>
+            <input type="submit" value="Upload" name="_b1a" class="submit" onclick='return btnSubmit(_f1a, "/www/");'>
+          </form>
+          <form name="_f1b" action="/cgi-bin/uploadto?p=/www/cgi-bin/" method="post" enctype="multipart/form-data">
+            <div id="/www/cgi-bin/"></div>
+            <input type="hidden" name="OkPage" value="../webdev.html">
+            <input type="hidden" name="BadPage" value="../webdev.html">
+            <div id="_cap1b">Directory <span class="dir">/www/cgi-bin/</span></div>
+            <input type="file" name="file1" class="fileinput" onchange='checkFileExt(this, ["cgi","pl"], "/www/cgi-bin/");'>
+            <input type="submit" value="Upload" name="_b1b" class="submit" onclick='return btnSubmit(_f1b, "/www/cgi-bin/");'>
+          </form>
+        </fieldset>
+      </section>
+    </div>
+    <div class="article">
+      <section>
+        <fieldset>
+          <legend id="_leg2">destination: sd card</legend>
+          <div class="hint" id="_hint2">Copies the file to sd card for <span class="dir">autorun.sh</span>.</div>
+          <hr>
+          <form name="_f2a" action="/cgi-bin/uploadto?p=/mnt/sd/WIFISD/www/" method="post" enctype="multipart/form-data">
+            <div id="/mnt/sd/WIFISD/www/"></div>
+            <input type="hidden" name="OkPage" value="../webdev.html">
+            <input type="hidden" name="BadPage" value="../webdev.html">
+            <div id="_cap2a">Directory <span class="dir">/www/</span></div>
+            <input type="file" name="file1" class="fileinput" onchange='checkFileExt(this, ["htm","html"], "/mnt/sd/WIFISD/www/");'>
+            <input type="submit" value="Upload" name="_b2a" class="submit" onclick='return btnSubmit(_f2a, "/mnt/sd/WIFISD/www/");'>
+          </form>
+          <form name="_f2b" action="/cgi-bin/uploadto?p=/mnt/sd/WIFISD/www/cgi-bin/" method="post" enctype="multipart/form-data">
+            <div id="/mnt/sd/WIFISD/www/cgi-bin/"></div>
+            <input type="hidden" name="OkPage" value="../webdev.html">
+            <input type="hidden" name="BadPage" value="../webdev.html">
+            <div id="_cap2b">Directory <span class="dir">/www/cgi-bin/</span></div>
+            <input type="file" name="file1" class="fileinput" onchange='checkFileExt(this, ["cgi","pl"], "/mnt/sd/WIFISD/www/cgi-bin/");'>
+            <input type="submit" value="Upload" name="_b2b" class="submit" onclick='return btnSubmit(_f2b, "/mnt/sd/WIFISD/www/cgi-bin/");'>
+          </form>
+        </fieldset>
+      </section>
+    </div>
+  </div>
+  <div class="article" id="noscript">
+    <section>
+      <fieldset>
+        <legend>Error / Fehler</legend>
+        <p class="error">Javascript is requiered! / Javascript erforderlich!</p>
+      </fieldset>
+    </section>
+  </div>
+  <div class="footer">&copy;2014 rudi, <a target="_blank" href="http://forum.chdk-treff.de/viewtopic.php?t=3287">forum.chdk-treff.de</a></div>
+  <div class="version">webdev.html: v1.3</div>
+</body>
+</html>

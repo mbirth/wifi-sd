@@ -1,0 +1,4 @@
+#!/bin/sh
+# safety - change mount to ro
+busybox-extra sed -i.orig -e 's/ -w / /' -e 's/-o iocharset/-o ro,iocharset/' /usr/bin/refresh_sd
+refresh_sd

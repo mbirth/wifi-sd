@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>WIFISD CHDK Add-on</title>
+<style type="text/css">
+body {
+  font-family: Arial, sans-serif;
+  background-color: #004488;
+  min-width: 600px;
+  margin: 5px 0px;
+  padding: 5px;
+}
+h1 {
+  color: #ffffff;
+  font-size: 20px;
+  margin: 0px 40px;
+}
+form {
+  margin: 10px;
+  clear: both;
+}
+a {
+  color: #ffffff;
+  font-size: 11px;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+.article {
+  background-color: #ffffff;
+  margin: 10px;
+  padding: 10px;
+  padding-top: 4px;
+  font-size: 14px;
+}
+.article hr{
+  color: #000000;
+  background-color: #000000;
+  height: 1px;
+  border: 0px;
+}
+.article fieldset{
+  border: 1px solid;
+}
+.article legend{
+  font-weight: 400;
+  text-transform: uppercase;
+}
+.dir{
+  font-family: monospace;
+}
+.hint{
+  margin: 0px 14px;
+  font-size: 12px;
+}
+.footer {
+  color: #ffffff;
+  font-size: 11px;
+  margin: 3px 40px;
+  float: left;
+}
+.version {
+  color: #ffffff;
+  font-size: 11px;
+  margin: 3px 40px;
+  float: right;
+}
+.fileinput {
+  font-size: 14px;
+  width: 370px;
+  height: 26px;
+  background-color: #ffffff;
+  border: 1px dotted #004488;
+}
+.submit {
+  margin-left: 20px;
+  position: absolute;
+  font-size: 14px;
+  width: 120px;
+  height: 26px;
+  background-color: #ffffff;
+  border: 1px solid #004488;
+}
+.error {
+  color: #ff0000;
+  font-weight: bold;
+  margin: 0px 20px;
+}
+#script {
+  display: none;
+}
+#noscript {
+  display: block;
+}
+</style>
+<script type="text/javascript">
+var fn = "<insert lastfilename>";
+var fs = "<insert bytecount>";
+var em = "<insert MESSAGE>";
+var _GET = new Array();
+var _GETcount = 0;
+var langDE = (navigator.language.indexOf("de") >= 0);
+var canSubmit = true;
+
+var params = unescape(location.search.substring(1, location.search.length)).split("&");
+for(var i=0; i < params.length; i++) {
+	param = params[i].split("=");
+	_GET[param[0]] = param[1];
+	if (param[0]) { _GETcount+=1; }
+}
+
+function isUploadBad() {
+  return (em.substr(0,1) != "<");
+}
+
+function isUploadGood() {
+  return (fn.substr(0,1) != "<") && (fs.substr(0,1) != "<");
+}
+
+function isUploadEnd() {
+  return (isUploadBad() || isUploadGood());
+}
+
+function formatGetVals() {
+  var res = "?p="+_GET.p;//location.search;
+  if (isUploadBad()) {
+    res += "&res=bad&em="+em;
+  } else {
+    if (isUploadGood()) { res += "&res=good&fn="+fn+"&fs="+fs; }
+  }
+  return res;
+}
+
+function currTime() {
+    var now = new Date();
+    var Y = now.getFullYear();
+    var M = now.getMonth()+1;
+    var D = now.getDate();
+    var h = now.getHours();
+    var m = now.getMinutes();
+    M = ((M < 10)? "0"+M:M);
+    D = ((D < 10)? "0"+D:D);
+    h = ((h < 10)? "0"+h:h);
+    m = ((m < 10)? "0"+m:m);
+    return Y+M+D+h+m;
+}
+
+function writeResult(id, text, iserr) {
+  var node = document.getElementById(id);
+  node.innerHTML = text;
+  node.style.color = (iserr)?"red":"green";
+  setTimeout(function() { node.innerHTML = ""; }, 10000);
+}
+
+function writeUploadResult() {
+  var _text1 = (langDE)? "hochgeladene Datei: ":"uploaded file: "
+  var _text2 = (langDE)? "Byte":"byte"
+  var _text3 = (langDE)? "Fehler beim Hochladen: ":"upload error: "
+  writeResult(_GET.p, (_GET.res=="good")? _text1+_GET.fn+" ["+_GET.fs+" "+_text2+"]":_text3+_GET.em, (_GET.res == "good")?0:1);
+}
+
+function checkFileExt(tfile, extlist, idErr) {
+  var name = tfile.value;
+  if (name.length > 0) {
+    var res = 0;
+    var ldp = name.lastIndexOf(".") + 1;
+    if (extlist.length > 0 && ldp > 1 && (name.length-ldp) > 1) {
+      var ext = name.substr(ldp);
+      for (i in extlist) {
+        if (extlist[i] == ext) { res = 1; break; }
+      }
+    }
+    if (res == 0) {
+      tfile.value = "";
+      var msg = (langDE)?"Gültige Dateiendung":"Valid file extension";
+      var pl = "";
+      if (extlist.length > 1) { pl = (langDE)?"en":"s"; }
+      writeResult(idErr, msg+pl+": "+extlist, 1);
+    }
+  }
+}
+
+function btnSubmit(formID, errID) {
+  var _text = (langDE)?"Es wird bereits eine Datei hochgeladen!":"There is a file upload already in process!"
+  if (canSubmit) {
+    if (formID.file1.value.length == 0) {
+      _text = (langDE)?"Keine Datei ausgewählt!":"No file selected!";
+    } else {
+      canSubmit = false;
+      return true;
+    }
+  }
+  writeResult(errID, _text, true);
+  return false;
+}
+
+function myload() {
+  //is upload finished?
+  if (isUploadEnd()) {
+    if (_GET.p == "/tmp/" && isUploadGood()) {
+      //redirect to step 2
+      var dfs2 = document.forms.step2;
+      dfs2.fn.value = fn;
+      dfs2.fs.value = fs;
+      dfs2.time.value = currTime();
+      dfs2.submit();
+    } else {
+      //redirect with get
+      var ref = document.referrer;
+      var i = ref.indexOf("?");
+      if (i > 0) { ref = ref.substring(0,i); }
+      location.replace(ref+formatGetVals());
+    }
+  } else {
+    //is redirected to main html?
+    if (_GETcount > 0) { writeUploadResult(); }
+    document.getElementById("script").style.display = "block";
+  }
+}
+
+function toLangDE() {
+  document.title = "WIFISD-CHDK-Erweiterung";
+  document.getElementById("_title").innerHTML = document.title;
+  document.getElementById("_leg1").innerHTML = "Skript hochladen";
+  document.getElementById("_hint1").innerHTML = "Kopiert ein Skript nach <span class=\"dir\">/CHDK/SCRIPTS/</span>";
+  document.getElementById("_cap1").innerHTML = "Skript auswählen";
+  document.forms._f1._b1.value = "Hochladen";
+  document.getElementById("_leg2").innerHTML = "Bibliothek hochladen";
+  document.getElementById("_hint2").innerHTML = "Kopiert eine LUA-Bibliothek nach <span class=\"dir\">/CHDK/LUALIB/</span>";
+  document.getElementById("_cap2").innerHTML = "Bibliothek auswählen";
+  document.forms._f2._b2.value = "Hochladen";
+  document.getElementById("_leg3").innerHTML = "CHDK einrichten";
+  document.getElementById("_hint3").innerHTML = "Kopiert die CHDK-Dateien aus einer CHDK-ZIP-Datei. Komplett- oder Aktualisierungsdateien sind zulässig.<p>Das Einrichten erfolgt in 2 Schritten:<ol><li>ZIP-Datei hochladen (dauert etwa 30 Sekunden)</li><li>Dateien kopieren</li></ol></p>";
+  document.getElementById("_cap3").innerHTML = "CHDK-ZIP-Datei auswählen";
+  document.forms._f3._b3.value = "Hochladen";
+}
+
+window.onload = function () {
+  myload();
+  if (langDE) { toLangDE(); }
+  document.getElementById("noscript").style.display = "none";
+};
+</script>
+</head>
+<body>
+  <h1 id="_title">WIFISD CHDK Add-on</h1>
+  <div id="script">
+    <div class="article">
+      <section>
+        <fieldset>
+          <legend id="_leg1">Script upload</legend>
+          <div class="hint" id="_hint1">Copies a script to <span class="dir">/CHDK/SCRIPTS/</span></div>
+          <hr>
+          <form name="_f1" action="/cgi-bin/uploadto?p=/mnt/sd/CHDK/SCRIPTS/" method="post" enctype="multipart/form-data">
+            <div id="/mnt/sd/CHDK/SCRIPTS/"></div>
+            <input type="hidden" name="OkPage" value="../chdk.html">
+            <input type="hidden" name="BadPage" value="../chdk.html">
+            <div id="_cap1">Select script</div>
+            <input type="file" name="file1" class="fileinput" onchange='checkFileExt(this, ["lua","bas"], "/mnt/sd/CHDK/SCRIPTS/");'>
+            <input type="submit" value="Upload" name="_b1" class="submit" onclick='return btnSubmit(_f1, "/mnt/sd/CHDK/SCRIPTS/");'>
+          </form>
+        </fieldset>
+      </section>
+    </div>
+    <div class="article">
+      <section>
+        <fieldset>
+          <legend id="_leg2">Library upload</legend>
+          <div class="hint" id="_hint2">Copies a lua library to <span class="dir">/CHDK/LUALIB/</span></div>
+          <hr>
+          <form name="_f2" action="/cgi-bin/uploadto?p=/mnt/sd/CHDK/LUALIB/" method="post" enctype="multipart/form-data">
+            <div id="/mnt/sd/CHDK/LUALIB/"></div>
+            <input type="hidden" name="OkPage" value="../chdk.html">
+            <input type="hidden" name="BadPage" value="../chdk.html">
+            <div id="_cap2">Select library</div>
+            <input type="file" name="file1" class="fileinput" onchange='checkFileExt(this, ["lua"], "/mnt/sd/CHDK/LUALIB/");'>
+            <input type="submit" value="Upload" name="_b2" class="submit" onclick='return btnSubmit(_f2, "/mnt/sd/CHDK/LUALIB/");'>
+          </form>
+        </fieldset>
+      </section>
+    </div>
+    <div class="article">
+      <section>
+        <fieldset>
+          <legend id="_leg3">install CHDK</legend>
+          <div class="hint" id="_hint3">Copy CHDK files from CHDK ZIP file. Accept complete or update packages.
+          <p>Two steps to install:
+            <ol>
+              <li>upload ZIP file (need approximate 30 seconds time)</li>
+              <li>copy files</li>
+            </ol>
+          </p>
+          </div>
+          <hr>
+          <form name="_f3" action="/cgi-bin/uploadto?p=/tmp/" method="post" enctype="multipart/form-data">
+            <div id="/tmp/"></div>
+            <input type="hidden" name="OkPage" value="../chdk.html">
+            <input type="hidden" name="BadPage" value="../chdk.html">
+            <div id="_cap3">Select CHDK ZIP file</div>
+            <input type="file" name="file1" class="fileinput" onchange='checkFileExt(this, ["zip"], "/tmp/");'>
+            <input type="submit" value="Upload" name="_b3" class="submit" onclick='return btnSubmit(_f3, "/tmp/");'>
+          </form>
+        </fieldset>
+      </section>
+    </div>
+  </div>
+  <div class="article" id="noscript">
+    <section>
+      <fieldset>
+        <legend>Error / Fehler</legend>
+        <p class="error">Javascript is requiered! / Javascript erforderlich!</p>
+      </fieldset>
+    </section>
+  </div>
+  <div class="footer">&copy;2014 rudi, <a target="_blank" href="http://forum.chdk-treff.de/viewtopic.php?t=3287">forum.chdk-treff.de</a></div>
+  <div class="version">chdk.html: v1.5</div>
+  <form name="step2" action="/cgi-bin/chdk_install.cgi" method="post">
+    <input type="hidden" name="fn" value="">
+    <input type="hidden" name="fs" value="">
+    <input type="hidden" name="time" value="0">
+  </form>
+</body>
+</html>
