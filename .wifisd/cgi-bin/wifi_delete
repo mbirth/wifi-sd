@@ -1,0 +1,21 @@
+#!/bin/sh
+FILE="/mnt/sd/${QUERY_STRING}"
+
+if [ -f "$FILE" ]; then
+    #rm -f ${FILE}
+    #sync
+    #refresh_sd
+    echo "Status: 200 OK"
+    echo "Content-Type: text/plain"
+    echo ""
+    echo "File to delete: $FILE"
+    echo "File exists!"
+
+else
+    echo "Status: 404 Not Found"
+    echo "Content-Type: text/plain"
+    echo ""
+    echo "File $FILE not found!"
+fi
+
+env
